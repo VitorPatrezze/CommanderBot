@@ -1,13 +1,18 @@
-from asyncio.windows_events import NULL
+from os import name
 import discord
-from discord.ext import commands
 import random
 import csv
+from asyncio.windows_events import NULL
+from discord_slash import cog_ext
+from discord.ext import commands
+from discord_slash import SlashCommand, SlashContext
+
+guild_ids=[879524619218997278]
 
 class War:
-    def __init__(self,title,location,date,attackers,deffenders,army):
+    def __init__(self,title,region,date,attackers,deffenders,army):
         self.title = title
-        self.location = location
+        self.region = region
         self.date = date
         self.attackers = attackers
         self.deffenders = deffenders
@@ -26,15 +31,23 @@ class War:
         return army
 
     def create_army(groups):
-        army = [[f"{random.randint(1123, 9534)}"]*5]*groups
+        #army = [["-"]*5]*groups
+        army = [[str(random.randint(1000,10000000)) for e in range(5)] for e in range(10)]
         War.save_army(army)
         return army
 
-    def create_embed(title, army):
-        embed = discord.Embed(title=title)
+    def create_embed(war):
+        embed = discord.Embed(title=f"{war.title}  -  {war.attackers}  -  {war.deffenders}  -  {war.region}  - {war.date}")
+        string = ''
+        for i in range(1,len(war.army)+1):
+            string = string +  f"**Group {i}\n**" + "```" + " \n".join(war.army[i-1]) + "```" + "\n"
+            if i == len(war.army)/2:
+                embed.add_field(name="\u200b",value=string, inline=True)
+                string = ''
+        embed.add_field(name="\u200b",value=string, inline=True)
+        composition = '\n**Tanks**\nWarhammer\nGreataxe\nSword and Shield\n\n**Supports**\nLife Staff\n\n**DPS**\nBow\nMusket\nHatchet\nRapier\nIce Gauntlet'
+        embed.add_field(name="\u200b",value=composition,inline=True)
 
-        for i in range(1,len(army)+1):
-            embed.add_field(name = f"Group {i}",value=" - ".join(army[i-1]), inline=False)
         return embed
 
 class WarCommands(commands.Cog):
@@ -42,20 +55,21 @@ class WarCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(aliases = ['w'])
-    async def war(self, ctx, title = "Guerra", location = NULL, date = NULL, attackers = NULL, deffenders = NULL, groups = 10):
-        war = War(title,location,date,attackers,deffenders, War.create_army(groups))
-        embed = War.create_embed(war.title, war.army)
+    @cog_ext.cog_slash(guild_ids=guild_ids, description="Create a new war")
+    async def newwar(self, ctx, title, region = "Windsward", date = "20/09 20:00", attackers = "Guilda X", deffenders = "Guilda Y"):
+        groups = 10
+        war = War(title,region,date,attackers,deffenders, War.create_army(groups))
+        embed = War.create_embed(war)
         await ctx.channel.send(embed=embed)
 
-    @commands.command()
-    async def enlist(self,ctx,name):
-        army = War.load_army()
-        return
+    # @cog_ext.cog_slash(guild_ids=guild_ids)
+    # async def enlist(self, ctx, player, war):
+    #     army = War.load_army()
+    #     return
 
-    @commands.command()
-    async def army(self,ctx):
-        await ctx.channel.send(embed=War.create_embed("See army", War.load_army()))
+    @cog_ext.cog_slash(guild_ids=guild_ids)
+    async def _slashtest(self, ctx:SlashContext):
+        await ctx.send("deu certo porra")
     
 def setup(bot):
     bot.add_cog(WarCommands(bot))

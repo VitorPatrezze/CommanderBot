@@ -1,9 +1,13 @@
 import discord
+from discord import guild
 from discord.ext import commands
+from discord_slash import SlashCommand, SlashContext
+from discord_slash.utils.manage_commands import create_choice, create_option
 
-bot = commands.Bot(command_prefix=".")
+bot = commands.Bot(command_prefix="/")
+slash = SlashCommand(bot, sync_commands=True)
 
-bot.load_extension('events.war')
+guild_ids=[879524619218997278]
 
 @bot.event
 async def on_ready():
@@ -13,8 +17,9 @@ async def on_ready():
 async def ping(ctx):
 	await ctx.channel.send(f"Pong! {round(bot.latency * 1000)}ms")    
 
-@bot.command()
+@slash.slash()
 async def clear(ctx, amount=2):
     await ctx.channel.purge(limit=amount)
 
+bot.load_extension('events.war')
 bot.run('ODc5NDExOTAxMzkyNjQ2MTQ0.YSPWJw.JjcYRwhwoKN6uF8hPsmkRZu5ksI')

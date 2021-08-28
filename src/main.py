@@ -11,6 +11,7 @@ slash = SlashCommand(bot, sync_commands=True)
 async def on_ready():
     print('We have logged in as {0.user}'.format(bot))
 
+
 @bot.command()
 async def ping(ctx):await ctx.channel.send(f"Pong! {round(bot.latency * 1000)}ms")    
 
@@ -21,4 +22,4 @@ async def clear(ctx, amount=2):
 bot.load_extension('entities.war')
 bot.run('ODc5NDExOTAxMzkyNjQ2MTQ0.YSPWJw.JjcYRwhwoKN6uF8hPsmkRZu5ksI')
 
-#/newwar title:tit region:reg date:data attackers:atk defenders:def
+#/newevent title:tit region:reg date:data attackers:atk defenders:def

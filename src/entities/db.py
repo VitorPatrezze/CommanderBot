@@ -69,6 +69,11 @@ def load_army(guild_id, war_title):
     lvl = info_ref.document(u'lvl').get().to_dict()
     return Army(comp, roles, weapons, lvl)
 
+def wars_list(guild_id):
+    ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').get()
+    valid_wars = [war.id for war in ref]
+    return valid_wars
+
 def update_army_info(army, war_ref):
     armyInfo = Army.recalculate_info(army)
     army_info = war_ref.collection(u'armyInfo')
@@ -86,18 +91,19 @@ def enlist(guild_id, war_title, army, player, group, pos):
                 group = army.comp.index(g) + 1
                 pos = index + 1
                 break
-    army.comp[int(group)-1][int(pos)-1] = player
-    group = war_ref.collection(u'army').document(f'group {group}')
-    group.update(
-        {str(pos) : {
-            u'name' : player.name,    
-            u'lvl' : player.lvl,    
-            u'role' : player.role,
-            u'primary' : player.primary,
-            u'secundary' : player.secundary
-        }
-    })
-    update_army_info(army, war_ref)
-    
-    #Criar erro para caso nao tenha lugar vazio
-    return
+    if group != 0 and pos != 0 and group > 10 and pos > 5:
+        army.comp[int(group)-1][int(pos)-1] = player
+        group = war_ref.collection(u'army').document(f'group {group}')
+        group.update(
+            {str(pos) : {
+                u'name' : player.name,    
+                u'lvl' : player.lvl,    
+                u'role' : player.role,
+                u'primary' : player.primary,
+                u'secundary' : player.secundary
+            }
+        })
+        update_army_info(army, war_ref)
+        return False
+    else: #error for when war is already full of players
+        return True

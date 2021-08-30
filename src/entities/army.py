@@ -9,14 +9,14 @@ class Army:
     
     def init_weapons():
         dicts = {}
-        weapons = ['Sword and Shield', 'Rapier', 'Hatchet', 'Spear', 'Great Axe', 'War Hammer', 'Bow', 'Musket', 'Fire Staff', 'Life Staff', 'Ice Gauntlet']
+        weapons = ['sword and shield', 'rapier', 'hatchet', 'spear', 'great axe', 'warhammer', 'bow', 'musket', 'fire staff', 'life staff', 'ice gauntlet']
         for i in weapons:
             dicts[i] = 0
         return dicts
 
     def init_roles():
         dicts = {}
-        roles = ['Tanks', 'Supports', 'DPS']
+        roles = ['tanks', 'supports', 'dps']
         for i in roles:
             dicts[i] = 0
         return dicts   
@@ -50,42 +50,29 @@ class Army:
     
     def armyLvlString(dic):
         keyList = sorted(dic.keys(), key=int, reverse=True)
-        string = '\n\n**Level Composition**\n'
+        string = '\n**Level Composition**\n'
         for k in keyList:
             string += f"`{dic[k]}x` {k}\n"
         return string
+    
+    def armyWeaponsString(dic):
+        keyList = sorted(dic.keys(), reverse=True)
+        string = '\n**Weapons**\n'
+        for k in keyList:
+            string += f"`{dic[k]}x` {k.capitalize()}\n"
+        return string
+    
+    def armyRolesString(dic):
+        keyList = sorted(dic.keys(), reverse=True)
+        string = ''
+        for k in keyList:
+            string += f"\n`{dic[k]}x` **{k.capitalize()}**\n"
+        return string
 
     def armyInfoString(army):
-        ntanks = "`" + str(army.roles['Tanks']) + "x`"
-        ndps = "`" + str(army.roles['DPS']) + "x`"
-        nsupps = "`" + str(army.roles['Supports']) + "x`"
-        nrapier = "`" + str(army.weapons['Rapier']) + "x`"
-        nhatchet = "`" + str(army.weapons['Hatchet']) + "x`"
-        nsword = "`" + str(army.weapons['Sword and Shield']) + "x`"
-        nspear = "`" + str(army.weapons['Spear']) + "x`"
-        ngreataxe = "`" + str(army.weapons['Great Axe']) + "x`"
-        nwarhammer = "`" + str(army.weapons['War Hammer']) + "x`"
-        nbow = "`" + str(army.weapons['Bow']) + "x`"
-        nmusket = "`" + str(army.weapons['Musket']) + "x`"
-        nfire = "`" + str(army.weapons['Fire Staff']) + "x`"
-        nlife = "`" + str(army.weapons['Life Staff']) + "x`"
-        nice = "`" + str(army.weapons['Ice Gauntlet']) + "x`"
-        string = (
-            f"\n**{ntanks} Tanks**\n"
-            f"\n**{nsupps} Supports**\n"
-            f"\n**{ndps} DPS**\n"
-            f"\n**Weapons**\n"
-            f"{nwarhammer} Warhammer\n"
-            f"{ngreataxe} Greataxe\n"
-            f"{nsword} Sword and Shield\n"
-            f"{nlife} Life Staff\n"
-            f"{nbow} Bow\n"
-            f"{nfire} Fire Staff\n"
-            f"{nhatchet} Hatchet\n"
-            f"{nice} Ice Gauntlet\n"
-            f"{nmusket} Musket\n"
-            f"{nrapier} Rapier\n"
-            f"{nspear} Spear\n"
-            )
-        string += Army.armyLvlString(army.lvl) 
+        string = ''
+        string += Army.armyRolesString(army.roles)
+        string += Army.armyWeaponsString(army.weapons)
+        string += Army.armyLvlString(army.lvl)
+
         return string

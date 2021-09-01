@@ -5,3 +5,9 @@ class Player:
         self.role = role
         self.primary = primary
         self.secundary = secundary
+    
+    valid_weapons = ['sword and shield', 'rapier', 'hatchet', 'spear', 'great axe', 'warhammer', 'bow', 'musket', 'fire staff', 'life staff', 'ice gauntlet']
+
+    valid_roles = ['tanks', 'supports', 'dps']
+
+    maximum_level = 60

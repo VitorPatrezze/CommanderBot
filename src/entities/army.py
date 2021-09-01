@@ -43,9 +43,9 @@ class Army:
                     army.weapons[p.primary] += 1
                     army.roles[p.role] += 1
                     if p.lvl in army.lvl.keys():
-                        army.lvl[p.lvl] += 1
+                        army.lvl[str(p.lvl)] += 1
                     else:
-                        army.lvl[p.lvl] = 1
+                        army.lvl[str(p.lvl)] = 1
         return army
     
     def armyLvlString(dic):

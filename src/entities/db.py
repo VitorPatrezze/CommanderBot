@@ -91,7 +91,7 @@ def enlist(guild_id, war_title, army, player, group, pos):
                 group = army.comp.index(g) + 1
                 pos = index + 1
                 break
-    if group != 0 and pos != 0 and group > 10 and pos > 5:
+    if group > 0 and group <= 10 and pos > 0 and pos <= 5:
         army.comp[int(group)-1][int(pos)-1] = player
         group = war_ref.collection(u'army').document(f'group {group}')
         group.update(

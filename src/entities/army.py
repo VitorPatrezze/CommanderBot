@@ -29,7 +29,7 @@ class Army:
         return dicts  
 
     def create_army():
-        comp = [[Player(name='-',lvl='',role='',primary='',secundary='') for p in range(5)] for e in range(10)]
+        comp = [[Player.null_player() for p in range(5)] for e in range(10)]
         army = Army(comp, Army.init_roles(), Army.init_weapons(), Army.init_lvl())
         return army
 
@@ -40,9 +40,9 @@ class Army:
         for g in army.comp:
             for p in g:
                 if p.name != '-':
-                    army.weapons[p.primary] += 1
+                    army.weapons[p.weapon] += 1
                     army.roles[p.role] += 1
-                    if p.lvl in army.lvl.keys():
+                    if str(p.lvl) in army.lvl.keys():
                         army.lvl[str(p.lvl)] += 1
                     else:
                         army.lvl[str(p.lvl)] = 1

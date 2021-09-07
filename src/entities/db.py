@@ -1,3 +1,4 @@
+from os import name
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
@@ -10,20 +11,29 @@ firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
-def create_war(guild_id, war):
-    doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(war.title)
-    doc_ref.set({
+def add_member(guild_id, user_id, player):
+    doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'members').document(str(user_id))
+    doc_ref.set(vars(player))
+    return
+
+def save_war(guild_id, war):
+    guild_ref = db.collection(u'guilds').document(str(guild_id))
+    war_count = guild_ref.get().to_dict()['war_count']
+    war_number = war_count + 1
+    war_ref = guild_ref.collection(u'wars').document(str(war_number))
+    war_ref.set({
         u'title': war.title,
         u'region': war.region,
         u'date': war.date,
         u'attackers': war.attackers,
         u'defenders': war.defenders,
     })
-    create_army(guild_id,war,war.army)
-    return
+    save_army(guild_id, war.army, war_number)
+    guild_ref.update({u'war_count' : war_number})
+    return war_number
 
-def create_army(guild_id, war, army):
-    doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(war.title)
+def save_army(guild_id, army, war_number):
+    doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(str(war_number))
     col_ref = doc_ref.collection(u'army')
     for g in range(0,len(army.comp)):
         group = col_ref.document(u'group ' + str(g + 1))
@@ -34,8 +44,7 @@ def create_army(guild_id, war, army):
                     u'name' : army.comp[g][p].name,    
                     u'lvl' : army.comp[g][p].lvl,    
                     u'role' : army.comp[g][p].role,
-                    u'primary' : army.comp[g][p].primary,
-                    u'secundary' : army.comp[g][p].secundary
+                    u'weapon' : army.comp[g][p].weapon
                 }
             })
     army_info = doc_ref.collection(u'armyInfo')
@@ -44,14 +53,14 @@ def create_army(guild_id, war, army):
     army_info.document(u'lvl').set(army.lvl)
     return
 
-def load_war(guild_id, war_title):
-    army = load_army(guild_id,war_title)
-    doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(war_title).get().to_dict()
+def load_war(guild_id, war_number):
+    army = load_army(guild_id, war_number)
+    doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(str(war_number)).get().to_dict()
     war = War(title = doc_ref['title'], region = doc_ref['region'], date = doc_ref['date'], attackers = doc_ref['attackers'], defenders = doc_ref['defenders'], army = army)
     return war
 
-def load_army(guild_id, war_title):
-    doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(war_title)
+def load_army(guild_id, war_number):
+    doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(str(war_number))
     army_ref = doc_ref.collection(u'army').stream()
     comp = [[None for p in range(5) ] for g in range(10) ]
     for group in army_ref:
@@ -61,13 +70,20 @@ def load_army(guild_id, war_title):
             comp[group_number][pos-1] = Player(name = group_dic[str(pos)]['name'], 
                 lvl = group_dic[str(pos)]['lvl'], 
                 role = group_dic[str(pos)]['role'], 
-                primary = group_dic[str(pos)]['primary'], 
-                secundary = group_dic[str(pos)]['secundary'])
+                weapon = group_dic[str(pos)]['weapon'])
     info_ref = doc_ref.collection(u'armyInfo')
     weapons = info_ref.document(u'weapons').get().to_dict()
     roles = info_ref.document(u'roles').get().to_dict()
     lvl = info_ref.document(u'lvl').get().to_dict()
     return Army(comp, roles, weapons, lvl)
+
+def load_char(guild_id, user_id):
+    member = db.collection(u'guilds').document(str(guild_id)).collection(u'members').document(str(user_id)).get()
+    if member.exists:
+        char = Player.from_dict(member.to_dict())
+    else:
+        char = None
+    return char
 
 def wars_list(guild_id):
     ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').get()
@@ -82,8 +98,8 @@ def update_army_info(army, war_ref):
     army_info.document(u'lvl').set(armyInfo.lvl)
     return
 
-def enlist(guild_id, war_title, army, player, group, pos):
-    war_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(war_title)
+def enlist(guild_id, war_number, army, player, group, pos):
+    war_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(str(war_number))
     if group == 0 or pos == 0:
         for g in army.comp:
             index = next((i for i,p in enumerate(g) if p.name == '-'), None) # gets the next available spot for player to enter
@@ -99,8 +115,7 @@ def enlist(guild_id, war_title, army, player, group, pos):
                 u'name' : player.name,    
                 u'lvl' : player.lvl,    
                 u'role' : player.role,
-                u'primary' : player.primary,
-                u'secundary' : player.secundary
+                u'weapon' : player.weapon
             }
         })
         update_army_info(army, war_ref)

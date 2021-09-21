@@ -16,13 +16,5 @@ async def on_ready():
 @bot.command()
 async def ping(ctx):await ctx.channel.send(f"Pong! {round(bot.latency * 1000)}ms")    
 
-@slash.slash()
-async def clear(ctx, amount=2):
-    await ctx.channel.purge(limit=amount)
-
 bot.load_extension('commands')
 bot.run('ODc5NDExOTAxMzkyNjQ2MTQ0.YSPWJw.JjcYRwhwoKN6uF8hPsmkRZu5ksI')
-
-#/newwar title:Guerra Teste region:First Light date:09/09 20h attackers:Guilda atacando defenders:Guilda Defendendo
-#/enlist war_title:Guerra Teste name:teste1 role:dps level:32 weapon:spear 
-

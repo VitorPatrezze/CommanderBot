@@ -11,6 +11,10 @@ firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
+def init_guild(guild_id):
+    db.collection(u'guilds').document(str(guild_id)).set({"war_count" : 0})
+    return
+
 def add_member(guild_id, user_id, player):
     doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'members').document(str(user_id))
     doc_ref.set(vars(player))
@@ -18,7 +22,7 @@ def add_member(guild_id, user_id, player):
 
 def save_war(guild_id, war):
     guild_ref = db.collection(u'guilds').document(str(guild_id))
-    war_count = guild_ref.get().to_dict()['war_count']
+    war_count = update_war_count(guild_ref)
     war_number = war_count + 1
     war_ref = guild_ref.collection(u'wars').document(str(war_number))
     war_ref.set({
@@ -27,9 +31,10 @@ def save_war(guild_id, war):
         u'date': war.date,
         u'attackers': war.attackers,
         u'defenders': war.defenders,
+        u'outcome' : war.outcome
     })
     save_army(guild_id, war.army, war_number)
-    guild_ref.update({u'war_count' : war_number})
+    update_war_count(guild_ref)
     return war_number
 
 def save_army(guild_id, army, war_number):
@@ -56,7 +61,7 @@ def save_army(guild_id, army, war_number):
 def load_war(guild_id, war_number):
     army = load_army(guild_id, war_number)
     doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(str(war_number)).get().to_dict()
-    war = War(title = doc_ref['title'], region = doc_ref['region'], date = doc_ref['date'], attackers = doc_ref['attackers'], defenders = doc_ref['defenders'], army = army)
+    war = War(title = doc_ref['title'], region = doc_ref['region'], date = doc_ref['date'], attackers = doc_ref['attackers'], defenders = doc_ref['defenders'], army = army, outcome=doc_ref['outcome'])
     return war
 
 def load_army(guild_id, war_number):
@@ -90,6 +95,19 @@ def wars_list(guild_id):
     valid_wars = [war.id for war in ref]
     return valid_wars
 
+def all_wars(guild_id):
+    unfinished_wars = []
+    finished_wars = []
+    query = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').stream() #get wars where outcome is ''
+    for war in query:
+        w = war.to_dict()
+        w['id'] = war.id
+        if w['outcome'] == '':
+            unfinished_wars.append(w)
+        else:
+            finished_wars.append(w)
+    return unfinished_wars , finished_wars
+
 def update_army_info(army, war_ref):
     armyInfo = Army.recalculate_info(army)
     army_info = war_ref.collection(u'armyInfo')
@@ -97,6 +115,11 @@ def update_army_info(army, war_ref):
     army_info.document(u'roles').set(armyInfo.roles)
     army_info.document(u'lvl').set(armyInfo.lvl)
     return
+
+def update_war_count(guild_ref):
+    qtd = len(guild_ref.collection(u'wars').get())
+    guild_ref.update({u'war_count' : qtd})
+    return qtd
 
 def enlist(guild_id, war_number, army, player, group, pos):
     war_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(str(war_number))

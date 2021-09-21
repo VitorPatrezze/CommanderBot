@@ -1,22 +1,31 @@
 import discord
-import datetime
 from discord import flags
 from discord_slash.utils.manage_commands import create_choice, create_option
 from entities.army import Army
 from entities.player import Player
 from entities.war import War
-from entities.db import save_war, load_war, load_army, enlist, wars_list, add_member, load_char
+from entities.db import save_war, load_war, load_army, enlist, wars_list, add_member, load_char, init_guild, all_wars
 from discord_slash import cog_ext
 from discord.ext import commands
 from discord_slash import SlashCommand, SlashContext
 from discord_components import DiscordComponents, Button, ButtonStyle, InteractionEventType
 
-#Como conseguir tirar esse guild_ids
-guild_ids=[879524619218997278]
-    
+guild_ids=[]
+
 class Commands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+    
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        if guild.id not in guild_ids:
+            guild_ids.append(guild.id)
+            init_guild(guild.id)
+    
+    @commands.Cog.listener()
+    async def on_ready(self):
+        for guild in self.bot.guilds:
+            guild_ids.append(guild.id)
 
     war_buttons = [[
         Button(style = ButtonStyle.blue, label = 'Character Info', id="char_info"),
@@ -84,7 +93,7 @@ class Commands(commands.Cog):
 
     def create_embed(war_number, war):
         embed = discord.Embed(title=f"{war_number}. {war.title}  -  {war.region}  -  {war.date}\nAttackers: {war.attackers}  -  Defenders: {war.defenders}", color = discord.Color.dark_red())
-        embed.set_thumbnail(url='https://images.ctfassets.net/j95d1p8hsuun/29peK2k7Ic6FsPAVjHWs8W/06d3add40b23b20bbff215f6979267e8/NW_OPENGRAPH_1200x630.jpg')
+        embed.set_thumbnail(url='https://pbs.twimg.com/profile_images/1392124727976546307/vBwCWL8W.jpg')
         string = ''
         for i in range(1,len(war.army.comp)+1):
             string = string +  f"**Group {i}\n**" + "```" + " \n".join(f'{n+1}. {p.name}' for n,p in enumerate(war.army.comp[i-1])) + "```" + "\n"
@@ -111,13 +120,68 @@ class Commands(commands.Cog):
             embed.add_field(name="\u200b", value=string, inline=True)
         return embed
 
+    async def show_war_panel(self, ctx, msg, guild_id, war_number, war):
+        embed = Commands.create_embed(war_number, war)
+        panel = await ctx.channel.send(content='', embed=embed, components = Commands.war_buttons)
+        await msg.delete()
+        while True:
+            event = await self.bot.wait_for("button_click")
+            if event.channel.id != ctx.channel.id:   #discord bots doesn't care which guild is using buttons. We do this confirmation to avoid confusion.
+                continue  #restarts the loop, so clicking buttons on one server won't disable the buttons on other server 
+            elif event.channel.id == ctx.channel.id:
+                callbacks = {
+                        "char_info" : Commands.char_info_callback,
+                        "enlist" : Commands.enlist_callback,
+                        "delist" : Commands.delist_callback,
+                        "refresh" : Commands.refresh_callback,
+                        "help" : Commands.help_callback
+                    }
+                func = callbacks[event.component.id]
+                if func is None:
+                    await event.respond(type = 4, content = "Something went wrong. Please try again.")  #if the bot is too slow or doesn't get the button id, it will send this in the channel
+                else: 
+                    await func(guild_id, event, panel, war_number)
+
     @cog_ext.cog_slash(guild_ids=guild_ids, description="Create a new event (war, invasion, PvP Quests, etc)") #only guild leaders can use
     async def new_war(self, ctx, title, region, date, attackers, defenders):
         msg = await ctx.send(f"`Creating new war with title '{title}'`")
-        war = War(title,region,date,attackers,defenders,army = Army.create_army())
+        war = War(title,region,date,attackers,defenders,army = Army.create_army(),outcome = '')
         war_number = save_war(ctx.guild.id, war)  #saves war to DB
-        embed = Commands.create_embed(war_number, war)
-        await msg.edit(content="",embed=embed)
+        await Commands.show_war_panel(self, ctx, msg, ctx.guild.id, war_number, war)
+        return
+
+    @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows specified war info")
+    async def war(self, ctx, war_number):
+        msg = await ctx.send(f"`Getting info about war {war_number}`")
+        guild_id = ctx.guild.id
+        valid_wars = wars_list(guild_id)
+        if war_number not in valid_wars:
+            await msg.edit(content = f"`There is no war with number '{war_number}' for this guild`")
+        else:
+            war = load_war(guild_id, war_number)
+            await Commands.show_war_panel(self, ctx, msg, guild_id, war_number, war)
+
+    @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows list of wars that don't have an outcome yet")
+    async def list_wars(self, ctx):
+        msg = await ctx.send(f"`Retrieving upcoming wars`")
+        guild_id = ctx.guild.id
+        unfinished_wars , finished_wars = all_wars(guild_id)
+        embed = discord.Embed(title="Wars list", color = discord.Color.dark_blue())
+        embed.set_thumbnail(url='https://pbs.twimg.com/profile_images/1392124727976546307/vBwCWL8W.jpg')
+        string = ''
+        for war in unfinished_wars:
+            string += f"{war['id']}. {war['title']} - {war['region']} - {war['date']}\n"
+        if string == '':
+            string = 'No matching wars'
+        embed.add_field(name="Upcoming Wars", value=string, inline = False)
+        string = ''
+        for war in finished_wars:
+            string += f"{war['id']}. {war['title']} - {war['region']} - {war['date']}\n - {war['outocme']}"
+        if string == '':
+            string = 'No matching wars'
+        embed.add_field(name="Finished Wars", value=string, inline = False)
+        await msg.delete()
+        await ctx.channel.send(content='', embed=embed)
 
     @cog_ext.cog_slash(guild_ids=guild_ids, description="Update your character in this guild", #only guild members can use
         options=[
@@ -147,37 +211,7 @@ class Commands(commands.Cog):
             await msg.edit(content=f"`{level} is not a valid level`")
         else:
             add_member(guild_id, ctx.author.id, Player(name, level, role, weapon))
-            await msg.edit(content=f"`'{name}' is now {ctx.author.name}'s character`")       
-
-    @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows specified war info")
-    async def war(self, ctx, war_number):
-        msg = await ctx.channel.send(f"`Getting info about war {war_number}`")
-        guild_id = ctx.guild.id
-        valid_wars = wars_list(guild_id)
-        if war_number not in valid_wars:
-            await msg.edit(f"`There is no war with number '{war_number}' for this guild`")
-        else:
-            war = load_war(guild_id, war_number)
-            embed = Commands.create_embed(war_number, war)
-            panel = await ctx.channel.send(content='', embed=embed, components = Commands.war_buttons)
-            await msg.delete()
-            while True:
-                event = await self.bot.wait_for("button_click")
-                if event.channel is not ctx.channel:   #discord bots doesn't care which guild is using buttons. We do this confirmation to avoid confusion.
-                    return 
-                if event.channel == ctx.channel:
-                    callbacks = {
-                            "char_info" : Commands.char_info_callback,
-                            "enlist" : Commands.enlist_callback,
-                            "delist" : Commands.delist_callback,
-                            "refresh" : Commands.refresh_callback,
-                            "help" : Commands.help_callback
-                        }
-                    func = callbacks[event.component.id]
-                    if func is None:
-                        await event.channel.respond(type = 4, content = "Something went wrong. Please try again.")  #if the bot is too slow or doesn't get the button id, it will send this in the channel
-                    else: 
-                        await func(guild_id, event, panel, war_number)
+            await msg.edit(content=f"`'{name}' is now {ctx.author.name}'s character`")
 
     @cog_ext.cog_slash(guild_ids=guild_ids, description="Enlist in an existing war", 
         options=[

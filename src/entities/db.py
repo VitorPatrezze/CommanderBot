@@ -90,7 +90,7 @@ def load_char(guild_id, user_id):
         char = None
     return char
 
-def wars_list(guild_id):
+def wars_ids_list(guild_id):
     ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').get()
     valid_wars = [war.id for war in ref]
     return valid_wars
@@ -106,7 +106,7 @@ def all_wars(guild_id):
             unfinished_wars.append(w)
         else:
             finished_wars.append(w)
-    return unfinished_wars , finished_wars
+    return unfinished_wars, finished_wars
 
 def update_army_info(army, war_ref):
     armyInfo = Army.recalculate_info(army)
@@ -120,6 +120,11 @@ def update_war_count(guild_ref):
     qtd = len(guild_ref.collection(u'wars').get())
     guild_ref.update({u'war_count' : qtd})
     return qtd
+
+def update_war_outcome(guild_id, war_number, outcome):
+    doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(str(war_number))
+    doc_ref.update({u'outcome' : outcome})
+    return
 
 def enlist(guild_id, war_number, army, player, group, pos):
     war_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(str(war_number))

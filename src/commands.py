@@ -4,7 +4,7 @@ from discord_slash.utils.manage_commands import create_choice, create_option
 from entities.army import Army
 from entities.player import Player
 from entities.war import War
-from entities.db import save_war, load_war, load_army, enlist, wars_list, add_member, load_char, init_guild, all_wars
+from entities.db import save_war, load_war, load_army, enlist, wars_ids_list, add_member, load_char, init_guild, all_wars, update_war_outcome
 from discord_slash import cog_ext
 from discord.ext import commands
 from discord_slash import SlashCommand, SlashContext
@@ -150,38 +150,63 @@ class Commands(commands.Cog):
         await Commands.show_war_panel(self, ctx, msg, ctx.guild.id, war_number, war)
         return
 
+    @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows list of wars that don't have an outcome yet")
+    async def wars_list(self, ctx):
+        guild_id = ctx.guild.id
+        unfinished_wars , finished_wars = all_wars(guild_id)
+        embed = discord.Embed(title="Wars list", color = discord.Color.dark_blue())
+        embed.set_thumbnail(url='https://pbs.twimg.com/profile_images/1392124727976546307/vBwCWL8W.jpg')
+
+        string = ''
+        for war in sorted(unfinished_wars, key=lambda x: int(x['id'])):
+            string += f"{war['id']}. {war['title']} - {war['region']} - {war['date']}\n"
+        if string == '':
+            string = 'No matching wars'
+        embed.add_field(name="Upcoming Wars", value=string, inline = False)
+
+        string = ''
+        for war in sorted(finished_wars, key=lambda x: int(x['id'])):
+            string += f"{war['id']}. {war['title']} - {war['region']} - {war['date']} - {war['outcome']}\n"
+        if string == '':
+            string = 'No matching wars'
+        embed.add_field(name="Finished Wars", value=string, inline = False)
+
+        await ctx.send(content='', embed=embed)
+
     @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows specified war info")
     async def war(self, ctx, war_number):
         msg = await ctx.send(f"`Getting info about war {war_number}`")
         guild_id = ctx.guild.id
-        valid_wars = wars_list(guild_id)
+        valid_wars = wars_ids_list(guild_id)
         if war_number not in valid_wars:
             await msg.edit(content = f"`There is no war with number '{war_number}' for this guild`")
         else:
             war = load_war(guild_id, war_number)
             await Commands.show_war_panel(self, ctx, msg, guild_id, war_number, war)
-
-    @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows list of wars that don't have an outcome yet")
-    async def list_wars(self, ctx):
-        msg = await ctx.send(f"`Retrieving upcoming wars`")
+    
+    @cog_ext.cog_slash(guild_ids=guild_ids, description="Enter the outcome of specified war to mark it as 'ended'", 
+        options=[
+            create_option(name = "war_number",
+                description="What war you want to change the outcome",
+                required=True,
+                option_type=4),
+            create_option(name = "outcome",
+                description="Choose the war's outcome",
+                required=True,
+                option_type=3,
+                choices=[create_choice(name="Win",value="Win"), 
+                    create_choice(name="Lose", value="Lose"), 
+                    create_choice(name="To be defined",value="")])
+            ])
+    async def war_outcome(self, ctx, war_number, outcome):
+        msg = await ctx.send(f"`Updating war {war_number} outcome`")
         guild_id = ctx.guild.id
-        unfinished_wars , finished_wars = all_wars(guild_id)
-        embed = discord.Embed(title="Wars list", color = discord.Color.dark_blue())
-        embed.set_thumbnail(url='https://pbs.twimg.com/profile_images/1392124727976546307/vBwCWL8W.jpg')
-        string = ''
-        for war in unfinished_wars:
-            string += f"{war['id']}. {war['title']} - {war['region']} - {war['date']}\n"
-        if string == '':
-            string = 'No matching wars'
-        embed.add_field(name="Upcoming Wars", value=string, inline = False)
-        string = ''
-        for war in finished_wars:
-            string += f"{war['id']}. {war['title']} - {war['region']} - {war['date']}\n - {war['outocme']}"
-        if string == '':
-            string = 'No matching wars'
-        embed.add_field(name="Finished Wars", value=string, inline = False)
-        await msg.delete()
-        await ctx.channel.send(content='', embed=embed)
+        valid_wars = wars_ids_list(guild_id)
+        if str(war_number) not in valid_wars:
+            await msg.edit(content = f"`There is no war with number '{war_number}' for this guild`")
+        else:
+            update_war_outcome(guild_id, war_number, outcome)
+            await msg.edit(content = f"`Updated war {war_number} outcome to '{outcome}'!`")
 
     @cog_ext.cog_slash(guild_ids=guild_ids, description="Update your character in this guild", #only guild members can use
         options=[
@@ -249,7 +274,7 @@ class Commands(commands.Cog):
     async def enlist(self, ctx, war_number, name, role, level, weapon, group=0, position=0 ):
         guild_id = ctx.guild.id
         msg = await ctx.send(f"`Enlisting player {name} in war '{war_number}'`")
-        valid_wars = wars_list(guild_id)
+        valid_wars = wars_ids_list(guild_id)
         if str(war_number) not in valid_wars:
             await msg.edit(content=f"`There is no war with number '{war_number}' for this guild`")
         elif int(level) > Player.maximum_level or int(level) < 0 :
@@ -281,7 +306,7 @@ class Commands(commands.Cog):
     async def remove(self, ctx, war_number, group, position):
         guild_id = ctx.guild.id
         msg = await ctx.send(f"`Removing player in group {group} and position {position} from war {war_number}`")
-        valid_wars = wars_list(guild_id)
+        valid_wars = wars_ids_list(guild_id)
         if str(war_number) not in valid_wars:
             await msg.edit(content=f"`There is no war with number '{war_number}' for this guild`")
         else:

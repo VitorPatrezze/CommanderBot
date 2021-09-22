@@ -1,6 +1,6 @@
 class Player:
     def __init__(self,name,lvl,role,weapon):
-        self.name = name
+        self.name = (name[:10] + '..') if len(name) > 12 else name
         self.lvl = lvl
         self.role = role
         self.weapon = weapon
@@ -10,21 +10,21 @@ class Player:
         lvl = dict['lvl']
         role = dict['role']
         weapon = dict['weapon']
-        return Player(name,lvl,role,weapon)
+        return Player(name,lvl,role,weapon) 
 
     def to_string(char):
         string = f"`{char.name} - {char.role.title()} - {char.weapon.title()} - level {char.lvl}`"
         return string
 
     def null_player():
-        name = '-'
+        name = ' - '
         lvl = ''
         role = ''
         weapon = ''
         return Player(name,lvl,role,weapon)
 
-    valid_weapons = ['sword and shield', 'rapier', 'hatchet', 'spear', 'great axe', 'warhammer', 'bow', 'musket', 'fire staff', 'life staff', 'ice gauntlet']
+    valid_weapons = ['sword & shield', 'rapier', 'hatchet', 'spear', 'great axe', 'warhammer', 'bow', 'musket', 'fire staff', 'life staff', 'ice gauntlet']
 
     valid_roles = ['tanks', 'supports', 'dps']
 
-    maximum_level = 60
+    maximum_level = 60 

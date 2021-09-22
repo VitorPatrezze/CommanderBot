@@ -9,14 +9,14 @@ class Army:
     
     def init_weapons():
         dicts = {}
-        weapons = ['sword and shield', 'rapier', 'hatchet', 'spear', 'great axe', 'warhammer', 'bow', 'musket', 'fire staff', 'life staff', 'ice gauntlet']
+        weapons = Player.valid_weapons
         for i in weapons:
             dicts[i] = 0
         return dicts
 
     def init_roles():
         dicts = {}
-        roles = ['tanks', 'supports', 'dps']
+        roles = Player.valid_roles
         for i in roles:
             dicts[i] = 0
         return dicts   

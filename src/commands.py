@@ -52,7 +52,8 @@ class Commands(commands.Cog):
         else:
             war_is_full = enlist(guild_id, war_number, army, player, 0, 0)
             if war_is_full:
-                await event.respond(content=f"`Could not enlist {player.name}, war is already full or desired group and position are invalid. Enlisting in defined position ('group' and 'position' parameters for /enlist) will remove old and add new player`")
+                await event.respond(content=f"`Could not enlist {player.name}, war is already full or desired group and position are invalid.\n" + 
+                + "Enlisting in defined position with parameters 'group' and 'position' in /enlist command will remove old and add new player.`")
             else:
                 await event.respond(content=f"`Enlisted player {player.name} in war '{war_number}' !`")
             return
@@ -87,7 +88,16 @@ class Commands(commands.Cog):
             '   1. Create a character in this guild using command "/character <name> <role> <weapon> <level>" and then enlist using the green button under the war panel.\n'+
             '   2. Use command "/enlist <war_number> <name> <role> <level> <weapon> <group> <position>" where group and position are optional.\n'+
             'Using the "De-list" button will remove all instances of your character from the war. If another character has the same name, it will be de-listed too.\n'+
-            'If you want to see a specific war panel, use the command "/war <war_number>".`'
+            'The "Character Info" button shows your character in this guild, if you have one.\n' +
+            '\n' +
+            'If you want to see a specific war panel, use the command "/war <war_number>".\n'+
+            'To see all the wars created in this guild, use command "/wars_list".\n' +
+            '\n' +
+            'Commands that only guild leaders can use:\n' +
+            '   "/new_war <title> <region> <date> <attackers> <defenders>" : creates new war\n'+
+            '   "/remove <war_number> <group> <position>" : removes character from at specified group/position from war\n' +
+            '   "/war_outcome <war_number> <outcome>" : updates war outcome with (win or lose), ending it.\n' +
+            '`'
         )
         return
 
@@ -96,12 +106,18 @@ class Commands(commands.Cog):
         embed.set_thumbnail(url='https://pbs.twimg.com/profile_images/1392124727976546307/vBwCWL8W.jpg')
         string = ''
         for i in range(1,len(war.army.comp)+1):
-            string = string +  f"**Group {i}\n**" + "```" + " \n".join(f'{n+1}. {p.name}' for n,p in enumerate(war.army.comp[i-1])) + "```" + "\n"
+            string = string +  f"**Group {i}\n**" + "```" + " \n".join(f'{n+1}.{p.name}' for n,p in enumerate(war.army.comp[i-1])) + "```" + "\n"
             if i == len(war.army.comp)/2:
                 embed.add_field(name="\u200b",value=string, inline=True)
                 string = ''
         embed.add_field(name="\u200b", value=string, inline=True)
         embed.add_field(name="\u200b", value=Army.armyInfoString(war.army), inline=True)
+        if war.outcome != '':
+            if war.outcome == 'Win':
+                string = str("""```yaml\nWin```""")
+            else:
+                string = str("""```fix\nLose```""")
+            embed.add_field(name="\u200b", value = string)
         return embed    
 
     def members_list_embed(members_list):
@@ -152,6 +168,7 @@ class Commands(commands.Cog):
 
     @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows list of wars that don't have an outcome yet")
     async def wars_list(self, ctx):
+        msg = await ctx.send(f"`Retrieving wars list`")
         guild_id = ctx.guild.id
         unfinished_wars , finished_wars = all_wars(guild_id)
         embed = discord.Embed(title="Wars list", color = discord.Color.dark_blue())
@@ -170,7 +187,7 @@ class Commands(commands.Cog):
         if string == '':
             string = 'No matching wars'
         embed.add_field(name="Finished Wars", value=string, inline = False)
-
+        await msg.delete()
         await ctx.send(content='', embed=embed)
 
     @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows specified war info")
@@ -184,7 +201,7 @@ class Commands(commands.Cog):
             war = load_war(guild_id, war_number)
             await Commands.show_war_panel(self, ctx, msg, guild_id, war_number, war)
     
-    @cog_ext.cog_slash(guild_ids=guild_ids, description="Enter the outcome of specified war to mark it as 'ended'", 
+    @cog_ext.cog_slash(guild_ids=guild_ids, description="Enter the outcome of specified war to mark it as 'ended'", #only guild leaders can use
         options=[
             create_option(name = "war_number",
                 description="What war you want to change the outcome",

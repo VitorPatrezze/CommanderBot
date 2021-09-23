@@ -13,8 +13,5 @@ async def on_ready():
     print('We have logged in as {0.user}'.format(bot))
     DiscordComponents(bot)
 
-@bot.command()
-async def ping(ctx):await ctx.channel.send(f"Pong! {round(bot.latency * 1000)}ms")
-
 bot.load_extension('commands')
 bot.run('ODc5NDExOTAxMzkyNjQ2MTQ0.YSPWJw.JjcYRwhwoKN6uF8hPsmkRZu5ksI')

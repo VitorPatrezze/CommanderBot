@@ -1,5 +1,6 @@
 import discord
 from discord import flags
+import discord_slash
 from discord_slash.utils.manage_commands import create_choice, create_option
 from entities.army import Army
 from entities.player import Player
@@ -34,6 +35,13 @@ class Commands(commands.Cog):
         Button(style = ButtonStyle.grey, label = 'Refresh', id = "refresh"),
         Button(style = ButtonStyle.grey, label = 'Help', id = "help")]]
 
+    async def has_role(ctx, msg):
+        if "New World Leader" in [x.name for x in ctx.author.roles]:
+            return True
+        else:
+            await msg.edit(content = "`User does not have the necessary role 'New World Leader' to run this command.`")
+            return False
+    
     async def char_info_callback(guild_id, event, panel, war_number):
         char = load_char(guild_id, event.author.id)
         if char != None:
@@ -161,14 +169,14 @@ class Commands(commands.Cog):
     @cog_ext.cog_slash(guild_ids=guild_ids, description="Create a new event (war, invasion, PvP Quests, etc)") #only guild leaders can use
     async def new_war(self, ctx, title, region, date, attackers, defenders):
         msg = await ctx.send(f"`Creating new war with title '{title}'`")
-        war = War(title,region,date,attackers,defenders,army = Army.create_army(),outcome = '')
-        war_number = save_war(ctx.guild.id, war)  #saves war to DB
-        await Commands.show_war_panel(self, ctx, msg, ctx.guild.id, war_number, war)
-        return
+        if await Commands.has_role(ctx, msg):
+            war = War(title,region,date,attackers,defenders,army = Army.create_army(),outcome = '')
+            war_number = save_war(ctx.guild.id, war)  #saves war to DB
+            await Commands.show_war_panel(self, ctx, msg, ctx.guild.id, war_number, war)
+            return
 
     @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows list of wars that don't have an outcome yet")
     async def wars_list(self, ctx):
-        msg = await ctx.send(f"`Retrieving wars list`")
         guild_id = ctx.guild.id
         unfinished_wars , finished_wars = all_wars(guild_id)
         embed = discord.Embed(title="Wars list", color = discord.Color.dark_blue())
@@ -187,7 +195,7 @@ class Commands(commands.Cog):
         if string == '':
             string = 'No matching wars'
         embed.add_field(name="Finished Wars", value=string, inline = False)
-        await msg.delete()
+
         await ctx.send(content='', embed=embed)
 
     @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows specified war info")
@@ -217,15 +225,16 @@ class Commands(commands.Cog):
             ])
     async def war_outcome(self, ctx, war_number, outcome):
         msg = await ctx.send(f"`Updating war {war_number} outcome`")
-        guild_id = ctx.guild.id
-        valid_wars = wars_ids_list(guild_id)
-        if str(war_number) not in valid_wars:
-            await msg.edit(content = f"`There is no war with number '{war_number}' for this guild`")
-        else:
-            update_war_outcome(guild_id, war_number, outcome)
-            await msg.edit(content = f"`Updated war {war_number} outcome to '{outcome}'!`")
+        if await Commands.has_role(ctx, msg):
+            guild_id = ctx.guild.id
+            valid_wars = wars_ids_list(guild_id)
+            if str(war_number) not in valid_wars:
+                await msg.edit(content = f"`There is no war with number '{war_number}' for this guild`")
+            else:
+                update_war_outcome(guild_id, war_number, outcome)
+                await msg.edit(content = f"`Updated war {war_number} outcome to '{outcome}'!`")
 
-    @cog_ext.cog_slash(guild_ids=guild_ids, description="Update your character in this guild", #only guild members can use
+    @cog_ext.cog_slash(guild_ids=guild_ids, description="Update your character in this guild", 
         options=[
             create_option(name = "name",
                 description="Choose your name",
@@ -321,16 +330,17 @@ class Commands(commands.Cog):
                 option_type=4)
             ])
     async def remove(self, ctx, war_number, group, position):
-        guild_id = ctx.guild.id
         msg = await ctx.send(f"`Removing player in group {group} and position {position} from war {war_number}`")
-        valid_wars = wars_ids_list(guild_id)
-        if str(war_number) not in valid_wars:
-            await msg.edit(content=f"`There is no war with number '{war_number}' for this guild`")
-        else:
-            army = load_army(guild_id, war_number)
-            enlist(guild_id, war_number, army, Player.null_player(), group, position)
-            await msg.edit(content=f"`Player in group {group} and position {position} was removed from war {war_number}`")
-
+        if await Commands.has_role(ctx, msg):
+            guild_id = ctx.guild.id
+            valid_wars = wars_ids_list(guild_id)
+            if str(war_number) not in valid_wars:
+                await msg.edit(content=f"`There is no war with number '{war_number}' for this guild`")
+            else:
+                army = load_army(guild_id, war_number)
+                enlist(guild_id, war_number, army, Player.null_player(), group, position)
+                await msg.edit(content=f"`Player in group {group} and position {position} was removed from war {war_number}`")
+  
 def setup(bot):
     bot.add_cog(Commands(bot))
     

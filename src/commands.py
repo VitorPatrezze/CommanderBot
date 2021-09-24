@@ -1,5 +1,6 @@
 import discord
 from discord import flags
+from discord.ext.commands.core import has_permissions
 import discord_slash
 from discord_slash.utils.manage_commands import create_choice, create_option
 from entities.army import Army
@@ -12,6 +13,7 @@ from discord_slash import SlashCommand, SlashContext
 from discord_components import DiscordComponents, Button, ButtonStyle, InteractionEventType
 
 guild_ids=[]
+role_name = "New World Leader"
 
 class Commands(commands.Cog):
     def __init__(self, bot):
@@ -21,8 +23,9 @@ class Commands(commands.Cog):
     async def on_guild_join(self, guild):
         if guild.id not in guild_ids:
             guild_ids.append(guild.id)
+            await guild.create_role(name=role_name, color = discord.Color.orange())
             init_guild(guild.id)
-    
+            
     @commands.Cog.listener()
     async def on_ready(self):
         for guild in self.bot.guilds:
@@ -36,10 +39,10 @@ class Commands(commands.Cog):
         Button(style = ButtonStyle.grey, label = 'Help', id = "help")]]
 
     async def has_role(ctx, msg):
-        if "New World Leader" in [x.name for x in ctx.author.roles]:
+        if role_name in [x.name for x in ctx.author.roles]:
             return True
         else:
-            await msg.edit(content = "`User does not have the necessary role 'New World Leader' to run this command.`")
+            await msg.edit(content = f"`User does not have the necessary role '{role_name}' to run this command.`")
             return False
     
     async def char_info_callback(guild_id, event, panel, war_number):
@@ -55,7 +58,7 @@ class Commands(commands.Cog):
         army = load_army(guild_id, war_number)
         player = load_char(guild_id, event.author.id)
         if player == None:
-            await event.respond(content = "`You don't have a character in this guild. To create or update one, use '/character <name> <role> <weapon> <level>'`")
+            await event.respond(content = "`You don't have a character in this guild/server. To create or update one, use '/character <name> <role> <weapon> <level>'`")
             return
         else:
             war_is_full = enlist(guild_id, war_number, army, player, 0, 0)
@@ -234,7 +237,7 @@ class Commands(commands.Cog):
                 update_war_outcome(guild_id, war_number, outcome)
                 await msg.edit(content = f"`Updated war {war_number} outcome to '{outcome}'!`")
 
-    @cog_ext.cog_slash(guild_ids=guild_ids, description="Update your character in this guild", 
+    @cog_ext.cog_slash(guild_ids=guild_ids, description="Update your character in this guild/server", 
         options=[
             create_option(name = "name",
                 description="Choose your name",

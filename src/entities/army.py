@@ -39,7 +39,7 @@ class Army:
         army.weapons = Army.init_weapons()
         for g in army.comp:
             for p in g:
-                if p.name != '-':
+                if p.name != ' - ':
                     army.weapons[p.weapon] += 1
                     army.roles[p.role] += 1
                     if str(p.lvl) in army.lvl.keys():

@@ -9,11 +9,13 @@ from entities.war import War
 cred = credentials.Certificate("src\env\commander-a29a6-firebase-adminsdk-umqv3-91332b1308.json")
 firebase_admin.initialize_app(cred)
 
-db = firestore.client()
+db: firestore.Firestore = firestore.client()
 
 def init_guild(guild_id):
     db.collection(u'guilds').document(str(guild_id)).set({"war_count" : 0})
-    return
+
+def delete_guild(guild_id):
+    db.collection(u'guilds').document(str(guild_id)).delete()
 
 def add_member(guild_id, user_id, player):
     doc_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'members').document(str(user_id))
@@ -130,7 +132,7 @@ def enlist(guild_id, war_number, army, player, group, pos):
     war_ref = db.collection(u'guilds').document(str(guild_id)).collection(u'wars').document(str(war_number))
     if group == 0 or pos == 0:
         for g in army.comp:
-            index = next((i for i,p in enumerate(g) if p.name == '-'), None) # gets the next available spot for player to enter
+            index = next((i for i,p in enumerate(g) if p.name == ' - '), None) # gets the next available spot for player to enter
             if index != None:
                 group = army.comp.index(g) + 1
                 pos = index + 1

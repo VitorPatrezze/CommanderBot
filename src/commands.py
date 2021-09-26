@@ -36,12 +36,12 @@ class Commands(commands.Cog):
         if guild.id not in guild_ids:
             guild_ids.append(guild.id)
             await guild.create_role(name=role_name, color=discord.Color.orange())
-            init_guild(guild.id)
+            await init_guild(guild.id)
 
     @commands.Cog.listener()
     async def on_guild_leave(self, guild):
         guild_ids.remove(guild.id)
-        delete_guild(guild.id)
+        await delete_guild(guild.id)
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -50,6 +50,7 @@ class Commands(commands.Cog):
 
     @commands.Cog.listener()
     async def on_component(self, ctx: ComponentContext):
+        await ctx.defer(hidden=True)
         button, war_number = ctx.custom_id.split(":")
         callbacks = {
             "char_info": Commands.char_info_callback,
@@ -104,7 +105,7 @@ class Commands(commands.Cog):
             return False
 
     async def char_info_callback(ctx: ComponentContext, war_number):
-        char = load_char(ctx.guild_id, ctx.author_id)
+        char = await load_char(ctx.guild_id, ctx.author_id)
         if char is not None:
             string = Player.to_string(char)
         else:
@@ -112,15 +113,15 @@ class Commands(commands.Cog):
         await ctx.reply(hidden=True, content=string)
 
     async def enlist_callback(ctx: ComponentContext, war_number):
-        player = load_char(ctx.guild_id, ctx.author_id)
+        player = await load_char(ctx.guild_id, ctx.author_id)
         if player is None:
             await ctx.reply(
                 content="`You don't have a character in this guild/server. To create or update one, use '/character <name> <role> <weapon> <level>'`",
                 hidden=True,
             )
         else:
-            army = load_army(ctx.guild_id, war_number)
-            war_is_full, group, position = enlist(ctx.guild_id, war_number, army, player, 0, 0)
+            army = await load_army(ctx.guild_id, war_number)
+            war_is_full, group, position = await enlist(ctx.guild_id, war_number, army, player, 0, 0)
             if war_is_full:
                 await ctx.reply(
                     content=f"`Could not enlist {player.name}, war is already full or desired group and position are invalid.\n"
@@ -128,9 +129,9 @@ class Commands(commands.Cog):
                     hidden=True,
                 )
             else:
-                await ctx.edit_origin(
+                await ctx.origin_message.edit(
                     content=None,
-                    embed=Commands.create_embed(war_number, load_war(ctx.guild_id, war_number)),
+                    embed=Commands.create_embed(war_number, await load_war(ctx.guild_id, war_number)),
                     components=Commands.war_buttons(war_number),
                 )
                 await ctx.reply(
@@ -139,8 +140,8 @@ class Commands(commands.Cog):
                 )
 
     async def delist_callback(ctx: ComponentContext, war_number):
-        army = load_army(ctx.guild_id, war_number)
-        player = load_char(ctx.guild_id, ctx.author_id)
+        army = await load_army(ctx.guild_id, war_number)
+        player = await load_char(ctx.guild_id, ctx.author_id)
         if player == None:
             await ctx.reply(
                 content="`You don't have a character in this guild. To create or update one, use '/character <name> <role> <weapon> <level>'`",
@@ -151,7 +152,7 @@ class Commands(commands.Cog):
             for g in range(len(army.comp)):
                 for p in range(len(army.comp[g])):
                     if army.comp[g][p].name == player.name:
-                        enlist(
+                        await enlist(
                             ctx.guild_id,
                             war_number,
                             army,
@@ -159,9 +160,9 @@ class Commands(commands.Cog):
                             g + 1,
                             p + 1,
                         )
-            await ctx.edit_origin(
+            await ctx.origin_message.edit(
                     content=None,
-                    embed=Commands.create_embed(war_number, load_war(ctx.guild_id, war_number)),
+                    embed=Commands.create_embed(war_number, await load_war(ctx.guild_id, war_number)),
                     components=Commands.war_buttons(war_number),
                 )
             await ctx.reply(
@@ -171,8 +172,8 @@ class Commands(commands.Cog):
             return
 
     async def refresh_callback(ctx: ComponentContext, war_number):
-        war = load_war(ctx.guild_id, war_number)
-        await ctx.edit_origin(
+        war = await load_war(ctx.guild_id, war_number)
+        await ctx.origin_message.edit(
             content=None,
             embed=Commands.create_embed(war_number, war),
             components=Commands.war_buttons(war_number),
@@ -182,7 +183,7 @@ class Commands(commands.Cog):
     async def help_callback(ctx: ComponentContext, war_number):
         await ctx.reply(
             hidden=True,
-            content=f"`If you want to enter the war, you can use this two methods:\n"
+            content=f"```\nIf you want to enter the war, you can use this two methods:\n"
             + '   1. Create a character in this guild using command "/character <name> <role> <weapon> <level>" and then enlist using the green button under the war panel.\n'
             + '   2. Use command "/enlist <war_number> <name> <role> <level> <weapon> <group> <position>" where group and position are optional.\n'
             + 'Using the "De-list" button will remove all instances of your character from the war. If another character has the same name, it will be de-listed too.\n'
@@ -195,7 +196,7 @@ class Commands(commands.Cog):
             + '   "/new_war <title> <region> <date> <attackers> <defenders>" : creates new war\n'
             + '   "/remove <war_number> <group> <position>" : removes character from at specified group/position from war\n'
             + '   "/war_outcome <war_number> <outcome>" : updates war outcome with (win or lose), ending it.\n'
-            + "`",
+            + "```",
         )
         return
 
@@ -277,7 +278,7 @@ class Commands(commands.Cog):
                 army=Army.create_army(),
                 outcome="",
             )
-            war_number = save_war(ctx.guild.id, war)  # saves war to DB
+            war_number = await save_war(ctx.guild.id, war)  # saves war to DB
             await Commands.show_war_panel(self, ctx, war_number, war)
             return
 
@@ -287,7 +288,7 @@ class Commands(commands.Cog):
     )
     async def wars_list(self, ctx):
         guild_id = ctx.guild.id
-        unfinished_wars, finished_wars = all_wars(guild_id)
+        unfinished_wars, finished_wars = await all_wars(guild_id)
         embed = discord.Embed(title="Wars list", color=discord.Color.dark_blue())
         embed.set_thumbnail(
             url="https://pbs.twimg.com/profile_images/1392124727976546307/vBwCWL8W.jpg"
@@ -309,18 +310,23 @@ class Commands(commands.Cog):
 
         await ctx.send(content="", embed=embed)
 
-    @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows specified war info")
+    @cog_ext.cog_slash(guild_ids=guild_ids, description="Shows specified war info",  options=[
+            create_option(
+                name="war_number",
+                description="Which war you want to see",
+                required=True,
+                option_type=3,
+            )])
     async def war(self, ctx, war_number):
         await ctx.defer()
         guild_id = ctx.guild.id
-        valid_wars = wars_ids_list(guild_id)
+        valid_wars = await wars_ids_list(guild_id)
         if war_number not in valid_wars:
             await ctx.reply(
-                content=f"`There is no war with number '{war_number}' for this guild`",
-                hidden=True,
+                content=f"`There is no war with number '{war_number}' for this guild`", 
             )
         else:
-            war = load_war(guild_id, war_number)
+            war = await load_war(guild_id, war_number)
             await Commands.show_war_panel(self, ctx, war_number, war)
 
     @cog_ext.cog_slash(
@@ -350,14 +356,14 @@ class Commands(commands.Cog):
         await ctx.defer(hidden=True)
         if await Commands.has_role(ctx):
             guild_id = ctx.guild.id
-            valid_wars = wars_ids_list(guild_id)
+            valid_wars = await wars_ids_list(guild_id)
             if str(war_number) not in valid_wars:
                 await ctx.reply(
                     content=f"`There is no war with number '{war_number}' for this guild`",
                     hidden=True,
                 )
             else:
-                update_war_outcome(guild_id, war_number, outcome)
+                await update_war_outcome(guild_id, war_number, outcome)
                 await ctx.reply(
                     content=f"`Updated war {war_number} outcome to '{outcome}'!`",
                     hidden=True,
@@ -405,7 +411,7 @@ class Commands(commands.Cog):
         if int(level) > Player.maximum_level or int(level) < 0:
             await ctx.reply(content=f"`{level} is not a valid level`", hidden=True)
         else:
-            add_member(guild_id, ctx.author.id, Player(name, level, role, weapon))
+            await add_member(guild_id, ctx.author.id, Player(name, level, role, weapon))
             await ctx.reply(
                 content=f"`'{name}' is now {ctx.author.nick if ctx.author.nick is not None else ctx.author.name}'s character`",
                 hidden=True,
@@ -417,7 +423,7 @@ class Commands(commands.Cog):
         options=[
             create_option(
                 name="war_number",
-                description="What war you want to enlist",
+                description="Which war you want to enlist",
                 required=True,
                 option_type=4,
             ),
@@ -478,7 +484,7 @@ class Commands(commands.Cog):
     ):
         await ctx.defer(hidden=True)
         guild_id = ctx.guild.id
-        valid_wars = wars_ids_list(guild_id)
+        valid_wars = await wars_ids_list(guild_id)
         if str(war_number) not in valid_wars:
             await ctx.reply(
                 content=f"`There is no war with number '{war_number}' for this guild`",
@@ -487,9 +493,9 @@ class Commands(commands.Cog):
         elif int(level) > Player.maximum_level or int(level) < 0:
             await ctx.reply(content=f"`{level} is not a valid level`", hidden=True)
         else:
-            army = load_army(guild_id, war_number)
+            army = await load_army(guild_id, war_number)
             player = Player(name, str(level), role.lower(), weapon.lower())
-            war_is_full, _ = enlist(guild_id, war_number, army, player, group, position)
+            war_is_full, group, pos = await enlist(guild_id, war_number, army, player, group, position)
             if war_is_full:
                 await ctx.reply(
                     content=f"`Could not enlist {name}, war is already full or desired group and position are invalid. Enlisting in defined position ('group' and 'position' parameters for /enlist) will remove old and add new player`",
@@ -497,7 +503,7 @@ class Commands(commands.Cog):
                 )
             else:
                 await ctx.reply(
-                    content=f"`Enlisted player {player.name} in war '{war_number}' !`",
+                    content=f"`Enlisted player {player.name} in war '{war_number}', group {group} and position {pos} !`",
                     hidden=True,
                 )
 
@@ -529,15 +535,15 @@ class Commands(commands.Cog):
         await ctx.defer(hidden=True)
         if await Commands.has_role(ctx):
             guild_id = ctx.guild.id
-            valid_wars = wars_ids_list(guild_id)
+            valid_wars = await wars_ids_list(guild_id)
             if str(war_number) not in valid_wars:
                 await ctx.reply(
                     content=f"`There is no war with number '{war_number}' for this guild`",
                     hidden=True,
                 )
             else:
-                army = load_army(guild_id, war_number)
-                enlist(
+                army = await load_army(guild_id, war_number)
+                await enlist(
                     guild_id, war_number, army, Player.null_player(), group, position
                 )
                 await ctx.reply(

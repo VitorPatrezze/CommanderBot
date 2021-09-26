@@ -112,7 +112,6 @@ class Commands(commands.Cog):
         await ctx.reply(hidden=True, content=string)
 
     async def enlist_callback(ctx: ComponentContext, war_number):
-        army = load_army(ctx.guild_id, war_number)
         player = load_char(ctx.guild_id, ctx.author_id)
         if player is None:
             await ctx.reply(
@@ -120,7 +119,8 @@ class Commands(commands.Cog):
                 hidden=True,
             )
         else:
-            war_is_full = enlist(ctx.guild_id, war_number, army, player, 0, 0)
+            army = load_army(ctx.guild_id, war_number)
+            war_is_full, group, position = enlist(ctx.guild_id, war_number, army, player, 0, 0)
             if war_is_full:
                 await ctx.reply(
                     content=f"`Could not enlist {player.name}, war is already full or desired group and position are invalid.\n"
@@ -128,8 +128,13 @@ class Commands(commands.Cog):
                     hidden=True,
                 )
             else:
+                await ctx.edit_origin(
+                    content=None,
+                    embed=Commands.create_embed(war_number, load_war(ctx.guild_id, war_number)),
+                    components=Commands.war_buttons(war_number),
+                )
                 await ctx.reply(
-                    content=f"`Enlisted player {player.name} in war '{war_number}' !`",
+                    content=f"`Enlisted player {player.name} in war '{war_number}', group {group} and position {position} !`",
                     hidden=True,
                 )
 
@@ -154,6 +159,11 @@ class Commands(commands.Cog):
                             g + 1,
                             p + 1,
                         )
+            await ctx.edit_origin(
+                    content=None,
+                    embed=Commands.create_embed(war_number, load_war(ctx.guild_id, war_number)),
+                    components=Commands.war_buttons(war_number),
+                )
             await ctx.reply(
                 content=f"`All instances of player '{player.name}' were removed from war {war_number}`",
                 hidden=True,
@@ -479,7 +489,7 @@ class Commands(commands.Cog):
         else:
             army = load_army(guild_id, war_number)
             player = Player(name, str(level), role.lower(), weapon.lower())
-            war_is_full = enlist(guild_id, war_number, army, player, group, position)
+            war_is_full, _ = enlist(guild_id, war_number, army, player, group, position)
             if war_is_full:
                 await ctx.reply(
                     content=f"`Could not enlist {name}, war is already full or desired group and position are invalid. Enlisting in defined position ('group' and 'position' parameters for /enlist) will remove old and add new player`",

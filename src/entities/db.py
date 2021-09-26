@@ -1,15 +1,17 @@
 from os import name
 import firebase_admin
+from google.cloud.firestore_v1.client import Client
 from firebase_admin import credentials
 from firebase_admin import firestore
 from entities.player import Player
 from entities.army import Army
 from entities.war import War
+from pathlib import Path
 
-cred = credentials.Certificate("src\env\commander-a29a6-firebase-adminsdk-umqv3-91332b1308.json")
+cred = credentials.Certificate(Path("src") / "env" / "commander-a29a6-firebase-adminsdk-umqv3-91332b1308.json")
 firebase_admin.initialize_app(cred)
 
-db: firestore.Firestore = firestore.client()
+db: Client = firestore.client()
 
 def init_guild(guild_id):
     db.collection(u'guilds').document(str(guild_id)).set({"war_count" : 0})
@@ -137,10 +139,10 @@ def enlist(guild_id, war_number, army, player, group, pos):
                 group = army.comp.index(g) + 1
                 pos = index + 1
                 break
-    if group > 0 and group <= 10 and pos > 0 and pos <= 5:
+    if 0 < group <= 10 and 0 < pos <= 5:
         army.comp[int(group)-1][int(pos)-1] = player
-        group = war_ref.collection(u'army').document(f'group {group}')
-        group.update(
+        group_ref = war_ref.collection(u'army').document(f'group {group}')
+        group_ref.update(
             {str(pos) : {
                 u'name' : player.name,    
                 u'lvl' : player.lvl,    
@@ -149,6 +151,6 @@ def enlist(guild_id, war_number, army, player, group, pos):
             }
         })
         update_army_info(army, war_ref)
-        return False
+        return False, group, pos
     else: #error for when war is already full of players
-        return True
+        return True, group, pos
